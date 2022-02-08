@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <fbxsdk.h>
 #include <map>
+#include <list>
 #include <iostream>
 #include <fstream>
 
@@ -60,7 +61,67 @@ FbxVector4 QMulV(const FbxQuaternion& q, const FbxVector4& v)
 	return out;
 }
 
+FbxNode* AddNewParent(FbxScene* pFbxScene, FbxNode* pChildNode, const char* parentName, bool addOtherChild = false)
+{
+	FbxSkeleton* currentBone = pChildNode->GetSkeleton();
+    if (!currentBone) return nullptr;
 
+    FbxNode* pCurrentParent = pChildNode->GetParent();
+    bool isNewRootNode = (pCurrentParent == nullptr) || (currentBone->GetSkeletonType() == FbxSkeleton::eRoot);
+
+    FbxString newNodeName(parentName);
+    FbxSkeleton* skeletonRootAttribute = FbxSkeleton::Create(pFbxScene, parentName);
+    skeletonRootAttribute->SetSkeletonType(isNewRootNode ? FbxSkeleton::eRoot : FbxSkeleton::eLimbNode);
+
+    FbxNode* newParentNode = FbxNode::Create(pFbxScene, parentName);
+    newParentNode->SetNodeAttribute(skeletonRootAttribute);
+
+	// insert the node as pChildNode and siblings 's new parent
+    if (pCurrentParent) {
+		if (addOtherChild) {
+            std::list<FbxNode*> children;
+            for (int i = 0; i < pCurrentParent->GetChildCount(); ++i)
+                children.push_back(pCurrentParent->GetChild(i));
+            for (auto child : children) {
+                pCurrentParent->RemoveChild(child);
+                newParentNode->AddChild(child);
+            }
+            pCurrentParent->AddChild(newParentNode);
+		}
+		else {
+			pCurrentParent->RemoveChild(pChildNode);
+			pCurrentParent->AddChild(newParentNode);
+			newParentNode->AddChild(pChildNode);
+		}
+    }
+	else {
+		newParentNode->AddChild(pChildNode);
+	}
+    if (isNewRootNode) currentBone->SetSkeletonType(FbxSkeleton::eLimbNode);
+
+    return newParentNode;
+}
+
+void RemoveNode(FbxScene* pFbxScene, FbxNode* pNode)
+{
+	FbxNode* pCurrentParent = pNode->GetParent();
+	if (!pCurrentParent) {
+		FBXSDK_printf("Can not remove root node %s\n", pNode->GetName());
+		return;
+	}
+
+	pCurrentParent->RemoveChild(pNode);
+
+	std::list<FbxNode*> children;
+	for (int i = 0; i < pNode->GetChildCount(); ++i)
+		children.push_back(pNode->GetChild(i));
+	for (auto child : children) {
+		pNode->RemoveChild(child);
+		pCurrentParent->AddChild(child);
+	}
+
+	pFbxScene->RemoveNode(pNode);
+}
 
 void RenameSkeleton(FbxScene* pFbxScene, FbxNode* pFbxNode, std::string indexName, std::map<std::string, SJointEnhancement> jointMap)
 {
@@ -226,6 +287,10 @@ void InterateContent(FbxScene* pFbxScene, FbxNode* pFbxNode)
 void InterateContent(FbxScene* pFbxScene)
 {
 	FbxNode* sceneRootNode = pFbxScene->GetRootNode();
+
+	// add a new root node
+	FbxNode* sklRoot = sceneRootNode->FindChild("Bip001", true, false);
+	FbxNode* newRoot = AddNewParent(pFbxScene, sklRoot, "root");	
 
 	if (sceneRootNode)
 	{
@@ -450,9 +515,8 @@ bool ProcessFile(FbxManager* pFbxManager, FbxScene* pFbxScene, FbxString fbxInFi
 
 		if (LoadScene(pFbxManager, pFbxScene, fbxInFilePath))
 		{
-			// Switch to a Z-Up co-ordinate system.
-			//FbxAxisSystem max;
-			//max.ConvertScene(pFbxScene);
+			// Switch to max's Z-Up co-ordinate system.						
+			FbxAxisSystem::Max.DeepConvertScene(pFbxScene);
 
 			// Display the scene.
 			DisplayMetaData(pFbxScene);
