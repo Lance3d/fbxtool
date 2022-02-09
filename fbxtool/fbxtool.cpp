@@ -8,6 +8,7 @@
 #include <list>
 #include <iostream>
 #include <fstream>
+#include <filesystem>
 
 #include "rapidjson/document.h"
 #include "rapidjson/prettywriter.h"
@@ -556,6 +557,82 @@ bool ProcessFile(FbxManager* pFbxManager, FbxScene* pFbxScene, FbxString fbxInFi
 	return result;
 }
 
+FbxString StdStr2FbxStr(std::string str)
+{
+    FbxString retStr = "";
+
+    char* newStr = NULL;
+    FbxAnsiToUTF8(str.c_str(), newStr);//Character encoding conversion API provided by Fbx Sdk
+    if (NULL != newStr)
+    {
+        retStr = newStr;
+        delete[] newStr;//remember to release
+    }
+
+    return retStr;
+}
+
+FbxString WStr2FbxStr(std::wstring str)
+{
+    FbxString retStr = "";
+
+    char* newStr = NULL;
+    FbxWCToUTF8(str.c_str(), newStr);//Character encoding conversion API provided by Fbx Sdk
+    if (NULL != newStr)
+    {
+        retStr = newStr;
+        delete[] newStr;//remember to release
+    }
+
+    return retStr;
+}
+
+void ProcessDirectory(FbxManager* pFbxManager, FbxScene* pFbxScene, std::wstring inputRootPath, std::wstring outputRootPath, std::wstring currentPath)
+{
+	bool bAbort = false;
+    tinydir_dir dir;
+    if (tinydir_open(&dir, currentPath.c_str()) != -1)
+    {
+        while ((dir.has_next) && (!bAbort))
+        {
+            tinydir_file file;
+            if (tinydir_readfile(&dir, &file) != -1)
+            {				
+				if ((file.is_dir > 0) && lstrcmpiW(file.name, L".") && lstrcmpiW(file.name, L".."))
+				{
+					ProcessDirectory(pFbxManager, pFbxScene, inputRootPath, outputRootPath, file.path);
+				}				
+				else if (lstrcmpiW(file.extension, L"FBX") == 0)
+                {
+                    std::wstring outputFilePath = file.path;
+                    outputFilePath.replace(0, inputRootPath.size(), outputRootPath);
+					
+					std::filesystem::path oPath(outputFilePath);
+					oPath.remove_filename();
+					std::filesystem::create_directories(oPath);
+                    ProcessFile(pFbxManager, pFbxScene, WStr2FbxStr(file.path), WStr2FbxStr(outputFilePath));
+                }
+
+                if (tinydir_next(&dir) == -1)
+                {
+                    FBXSDK_printf("Error getting next file");
+                    bAbort = true;
+                }
+            }
+            else
+            {
+                FBXSDK_printf("Error getting file");
+                bAbort = true;
+            }
+        }
+    }
+    else
+    {
+        FBXSDK_printf("Folder not found.");
+    }
+
+    tinydir_close(&dir);    
+}
 
 int ReadJointFile(std::string &jointMetaFilePath)
 {
@@ -621,6 +698,8 @@ int ReadJointFile(std::string &jointMetaFilePath)
 
 int main(int argc, char** argv)
 {
+	SetConsoleOutputCP(CP_UTF8);
+
 	bool didEverythingSucceed { true };
 	bool isBulk { false };
 	std::string inFilePath;
@@ -657,7 +736,7 @@ int main(int argc, char** argv)
 		exit(1);
 	}
 
-	FbxString fbxInFilePath { inFilePath.c_str() };
+	FbxString fbxInFilePath = StdStr2FbxStr(inFilePath);
 	FbxManager* pFbxManager = nullptr;
 	FbxScene* pFbxScene = nullptr;
 
@@ -679,7 +758,7 @@ int main(int argc, char** argv)
 		// Default output is to the same file as the input.
 		FbxString fbxOutFilePath;
 		if (outFilePath.length() > 0)
-			fbxOutFilePath = outFilePath.c_str();
+			fbxOutFilePath = StdStr2FbxStr(outFilePath);
 		else
 			fbxOutFilePath = fbxInFilePath;
 
@@ -697,53 +776,21 @@ int main(int argc, char** argv)
 		}
 
 		// Default to using the present directory if no file path was supplied.
-		TCHAR dirPath [255];
+		TCHAR* tmpInputPath = nullptr;
 		size_t pReturnValue;
 		if (fbxInFilePath.IsEmpty())
-			lstrcpyW(dirPath, L".");
+			FbxAnsiToWC(".", tmpInputPath, &pReturnValue);
 		else
-			mbstowcs_s(&pReturnValue, dirPath, inFilePath.c_str(), inFilePath.length());
+			FbxAnsiToWC(inFilePath.c_str(), tmpInputPath, &pReturnValue);
 
-		tinydir_dir dir;
-		if (tinydir_open(&dir, dirPath) != -1)
-		{
-			while ((dir.has_next) && (!bAbort))
-			{
-				tinydir_file file;
-				if (tinydir_readfile(&dir, &file) != -1)
-				{
-					if (lstrcmpiW(file.extension, L"FBX") == 0)
-					{
-						printf("%ls\n", file.name);
-						char inFilePath [255];
-						wcstombs_s(&pReturnValue, inFilePath, file.name, wcslen(file.name));
+		std::wstring inputRootPath = tmpInputPath;
+        TCHAR* tmpOutputPath = nullptr;
+        FbxAnsiToWC(outFilePath.c_str(), tmpOutputPath);
+        std::wstring outputRootPath = tmpOutputPath;
+        delete[] tmpOutputPath;
+		delete[] tmpInputPath;
 
-						// Root of the output path.
-						FbxString fbxOutFilePath { outFilePath.c_str() };
-						fbxOutFilePath.Append(inFilePath, strlen(inFilePath));
-
-						ProcessFile(pFbxManager, pFbxScene, inFilePath, fbxOutFilePath);
-					}
-
-					if (tinydir_next(&dir) == -1)
-					{
-						FBXSDK_printf("Error getting next file");
-						bAbort = true;
-					}
-				}
-				else
-				{
-					FBXSDK_printf("Error getting file");
-					bAbort = true;
-				}
-			}
-		}
-		else
-		{
-			FBXSDK_printf("Folder not found.");
-		}
-
-		tinydir_close(&dir);
+		ProcessDirectory(pFbxManager, pFbxScene, inputRootPath, outputRootPath, inputRootPath);		
 	}
 
 	// Destroy all objects created by the FBX SDK.
