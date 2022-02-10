@@ -1,0 +1,189 @@
+{
+  "axis": "xzy",
+  "applyWeaponFix": false,
+  "addRoot": true,
+  "addRootChildName": "Bip001",
+  "addRootRootName": "root",
+  "joints": [
+    {
+      "old-name": "Bip001",
+      "new-name": "pelvis"
+    },
+    {
+      "old-name": "Bip001 Spine",
+      "new-name": "spine_01"
+    },
+    {
+      "old-name": "Bip001 Spine1",
+      "new-name": "spine_02"
+    },
+    {
+      "old-name": "Bip001 L Clavicle",
+      "new-name": "clavicle_l"
+    },
+    {
+      "old-name": "Bip001 L UpperArm",
+      "new-name": "upperarm_l"
+    },
+    {
+      "old-name": "Bip001 L Forearm",
+      "new-name": "lowerarm_l"
+    },
+    {
+      "old-name": "Bip001 L Hand",
+      "new-name": "hand_l"
+    },
+	    {
+      "old-name": "Bip001 R Clavicle",
+      "new-name": "clavicle_r"
+    },
+    {
+      "old-name": "Bip001 R UpperArm",
+      "new-name": "upperarm_r"
+    },
+    {
+      "old-name": "Bip001 R Forearm",
+      "new-name": "lowerarm_r"
+    },
+    {
+      "old-name": "Bip001 R Hand",
+      "new-name": "hand_r"
+    },
+	{
+      "old-name": "Bip001 Neck",
+      "new-name": "neck_01"
+    },
+	{
+      "old-name": "Bip001 Head",
+      "new-name": "head"
+    },
+	{
+      "old-name": "Bip001 L Thigh",
+      "new-name": "thigh_l"
+    },
+	{
+      "old-name": "Bip001 L Calf",
+      "new-name": "calf_l"
+    },
+	{
+      "old-name": "Bip001 L Foot",
+      "new-name": "foot_l"
+    },
+	{
+      "old-name": "Bip001 L Toe0",
+      "new-name": "ball_l"
+    },
+	{
+      "old-name": "Bip001 R Thigh",
+      "new-name": "thigh_r"
+    },
+	{
+      "old-name": "Bip001 R Calf",
+      "new-name": "calf_r"
+    },
+	{
+      "old-name": "Bip001 R Foot",
+      "new-name": "foot_r"
+    },
+	{
+      "old-name": "Bip001 R Toe0",
+      "new-name": "ball_r"
+    },
+	{
+      "old-name": "Bip001 L Finger0",
+      "new-name": "thumb_01_l"
+    },
+	{
+      "old-name": "Bip001 L Finger01",
+      "new-name": "thumb_02_l"
+    },
+	{
+      "old-name": "Bip001 L Finger02",
+      "new-name": "thumb_03_l"
+    },
+	{
+      "old-name": "Bip001 L Finger1",
+      "new-name": "index_01_l"
+    },
+	{
+      "old-name": "Bip001 L Finger11",
+      "new-name": "index_02_l"
+    },
+	{
+      "old-name": "Bip001 L Finger12",
+      "new-name": "index_03_l"
+    },
+	{
+      "old-name": "Bip001 L Finger2",
+      "new-name": "middle_01_l"
+    },
+	{
+      "old-name": "Bip001 L Finger21",
+      "new-name": "middle_02_l"
+    },
+	{
+      "old-name": "Bip001 L Finger22",
+      "new-name": "middle_03_l"
+    },
+	{
+      "old-name": "Bip001 L Finger3",
+      "new-name": "ring_01_l"
+    },
+	{
+      "old-name": "Bip001 L Finger31",
+      "new-name": "ring_02_l"
+    },
+	{
+      "old-name": "Bip001 L Finger32",
+      "new-name": "ring_03_l"
+    },
+	{
+      "old-name": "Bip001 R Finger0",
+      "new-name": "thumb_01_r"
+    },
+	{
+      "old-name": "Bip001 R Finger01",
+      "new-name": "thumb_02_r"
+    },
+	{
+      "old-name": "Bip001 R Finger02",
+      "new-name": "thumb_03_r"
+    },
+	{
+      "old-name": "Bip001 R Finger1",
+      "new-name": "index_01_r"
+    },
+	{
+      "old-name": "Bip001 R Finger11",
+      "new-name": "index_02_r"
+    },
+	{
+      "old-name": "Bip001 R Finger12",
+      "new-name": "index_03_r"
+    },
+	{
+      "old-name": "Bip001 R Finger2",
+      "new-name": "middle_01_r"
+    },
+	{
+      "old-name": "Bip001 R Finger21",
+      "new-name": "middle_02_r"
+    },
+	{
+      "old-name": "Bip001 R Finger22",
+      "new-name": "middle_03_r"
+    },
+	{
+      "old-name": "Bip001 R Finger3",
+      "new-name": "ring_01_r"
+    },
+	{
+      "old-name": "Bip001 R Finger31",
+      "new-name": "ring_02_r"
+    },
+	{
+      "old-name": "Bip001 R Finger32",
+      "new-name": "ring_03_r"
+    }
+  ]
+}
