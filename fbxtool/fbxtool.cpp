@@ -39,6 +39,12 @@ std::map<std::string, SJointEnhancement> jointMap;
 bool isVerbose { false };
 bool applyMixamoFixes { false };
 bool addIK { false };
+bool gApplyWeaponFix { false };
+bool gAddRoot{ false };
+std::string gAddRootChildName{ "" };
+std::string gAddRootRootName{ "root" };
+std::string gAxis{ "" };
+
 
 
 // Multiply a quaternion by a vector.
@@ -375,13 +381,16 @@ void InterateContent(FbxScene* pFbxScene)
 {
 	FbxNode* sceneRootNode = pFbxScene->GetRootNode();
 
-	// apply bone hierarchy fix (add a new root node)
-	FbxNode* sklRoot = sceneRootNode->FindChild("Bip001", true, false);
-	if (sklRoot) {
-		FbxNode* newRoot = AddNewParent(pFbxScene, sklRoot, "root");
+	if (gAddRoot) {
+        // apply bone hierarchy fix (add a new root node)
+        FbxNode* sklRoot = sceneRootNode->FindChild(gAddRootChildName.c_str(), true, false);
+        if (sklRoot) {
+            FbxNode* newRoot = AddNewParent(pFbxScene, sklRoot, gAddRootRootName.c_str());
+        }
 	}
 	
-	ApplyWeaponFix(pFbxScene);
+	if(gApplyWeaponFix)
+		ApplyWeaponFix(pFbxScene);
 
 	if (sceneRootNode)
 	{
@@ -606,8 +615,12 @@ bool ProcessFile(FbxManager* pFbxManager, FbxScene* pFbxScene, FbxString fbxInFi
 
 		if (LoadScene(pFbxManager, pFbxScene, fbxInFilePath))
 		{
-			// Switch to max's Z-Up co-ordinate system.						
-			FbxAxisSystem::Max.DeepConvertScene(pFbxScene);
+			// switch Axis
+			if (!gAxis.empty()) {
+                FbxAxisSystem axis;
+                FbxAxisSystem::ParseAxisSystem(gAxis.c_str(), axis);
+                axis.DeepConvertScene(pFbxScene);
+			}
 
 			// Display the scene.
 			DisplayMetaData(pFbxScene);
@@ -746,40 +759,52 @@ int ReadJointFile(std::string &jointMetaFilePath)
 	}
 	else
 	{
-		const rapidjson::Value& joints = jointJSONDocument ["joints"];
-		assert(joints.IsArray());
-		for (rapidjson::SizeType i = 0; i < joints.Size(); i++)
-		{
-			assert(joints [i].IsObject());
+		if (jointJSONDocument.HasMember("joints") && jointJSONDocument["joints"].IsArray()) {
+            const rapidjson::Value& joints = jointJSONDocument["joints"];
+            for (rapidjson::SizeType i = 0; i < joints.Size(); i++)
+            {
+                assert(joints[i].IsObject());
 
-			SJointEnhancement newJoint;
+                SJointEnhancement newJoint;
 
-			// Load up our map with the data in the JSON file.
-			newJoint.oldName = joints [i] ["old-name"].GetString();
-			newJoint.newName = joints [i] ["new-name"].GetString();
+                // Load up our map with the data in the JSON file.
+                newJoint.oldName = joints[i]["old-name"].GetString();
+                newJoint.newName = joints[i]["new-name"].GetString();
 
-			if (joints [i].HasMember("physics-proxy"))
-			{
-				newJoint.physicsProxy = joints [i] ["physics-proxy"].GetString();
-			}
+                if (joints[i].HasMember("physics-proxy"))
+                {
+                    newJoint.physicsProxy = joints[i]["physics-proxy"].GetString();
+                }
 
-			if (joints [i].HasMember("ragdoll-proxy"))
-			{
-				newJoint.ragdollProxy = joints [i] ["ragdoll-proxy"].GetString();
-			}
+                if (joints[i].HasMember("ragdoll-proxy"))
+                {
+                    newJoint.ragdollProxy = joints[i]["ragdoll-proxy"].GetString();
+                }
 
-			if (joints [i].HasMember("primitive-type"))
-			{
-				newJoint.primitiveType = joints [i] ["primitive-type"].GetString();
-			}
+                if (joints[i].HasMember("primitive-type"))
+                {
+                    newJoint.primitiveType = joints[i]["primitive-type"].GetString();
+                }
 
-			if (joints [i].HasMember("parent-node"))
-			{
-				newJoint.parentNode = joints [i] ["parent-node"].GetString();
-			}
+                if (joints[i].HasMember("parent-node"))
+                {
+                    newJoint.parentNode = joints[i]["parent-node"].GetString();
+                }
 
-			jointMap [newJoint.oldName] = newJoint;
+                jointMap[newJoint.oldName] = newJoint;
+            }
 		}
+
+		if(jointJSONDocument.HasMember("axis") && jointJSONDocument["axis"].IsString())
+			gAxis = jointJSONDocument["axis"].GetString();
+		if (jointJSONDocument.HasMember("applyWeaponFix") && jointJSONDocument["applyWeaponFix"].IsBool())
+			gApplyWeaponFix = jointJSONDocument["applyWeaponFix"].GetBool();
+		if (jointJSONDocument.HasMember("addRoot") && jointJSONDocument["addRoot"].IsBool())
+			gAddRoot = jointJSONDocument["addRoot"].GetBool();
+        if (jointJSONDocument.HasMember("addRootChildName") && jointJSONDocument["addRootChildName"].IsString())
+            gAddRootChildName = jointJSONDocument["addRootChildName"].GetString();
+		if (jointJSONDocument.HasMember("addRootRootName") && jointJSONDocument["addRootRootName"].IsString())
+			gAddRootRootName = jointJSONDocument["addRootRootName"].GetString();
 	}
 
 	return 0;
