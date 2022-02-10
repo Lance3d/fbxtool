@@ -124,6 +124,92 @@ void RemoveNode(FbxScene* pFbxScene, FbxNode* pNode)
 	pFbxScene->RemoveNode(pNode);
 }
 
+void ResetBoneTransform(FbxNode* node)
+{
+	FbxSkeleton* bone = node->GetSkeleton();	
+
+	if (bone) {
+		std::cout << "Bone: " << node->GetName();
+		node->SetName("root");
+		std::cout << " renamed to: " << node->GetName() << std::endl;		
+	}
+
+    FbxMesh* mesh = node->GetMesh();
+	if (mesh && mesh->GetDeformerCount(FbxDeformer::eSkin) > 0) {
+        FbxDeformer* def = mesh->GetDeformer(0, FbxDeformer::eSkin);        
+        FbxSkin* skin = FbxCast<FbxSkin>(def);
+		if (skin) {
+            int clusterCount = skin->GetClusterCount();
+            for (int i = 0; i < clusterCount; i++) {
+                FbxCluster* cluster = skin->GetCluster(i);
+                //FbxCluster::ELinkMode lClusterMode = cluster->GetLinkMode();
+                //const char* boneName = cluster->GetLink()->GetName();
+
+                FbxAMatrix kLinkMatrix;
+                cluster->GetTransformLinkMatrix(kLinkMatrix);
+                //FbxAMatrix kTM;
+                //cluster->GetTransformMatrix(kTM);                
+
+                FbxAMatrix kInvLinkMatrix(kLinkMatrix.Inverse());
+                //FbxAMatrix kM(kInvLinkMatrix * kTM);                
+                
+				// reset deformer transform and put mesh to origin
+                cluster->SetTransformLinkMatrix(FbxAMatrix());                
+				node->SetPivotState(FbxNode::eDestinationPivot, FbxNode::ePivotActive);
+                node->SetGeometricTranslation(FbxNode::eDestinationPivot, -kInvLinkMatrix.GetT() * 0.5);
+                //node->LclTranslation.Set(-kLinkMatrix.GetT());
+
+
+                //invBindPose[boneName] = kM;		
+                //bindPose[boneName] = kM.Inverse();		
+                //int indexCount = cluster->GetControlPointIndicesCount();		
+                //int* indices = cluster->GetControlPointIndices();		
+                //double* weights = cluster->GetControlPointWeights();		
+                //int bone = boneMap[boneName];		
+                //for (int j = 0; j < indexCount; j++) { 
+                //	int vertex = indices[j];			
+                //	float weight = (float)weights[j];			
+                //	BoneWeightPair pair;							
+                //	pair.bone = bone;			
+                //	pair.weight = weight;			
+                //	boneWeights[vertex].push_back(pair); 
+                //} 
+            }
+		}
+	}	
+
+	for (int i = 0; i < node->GetChildCount(); ++i) {
+		ResetBoneTransform(node->GetChild(i));
+	}
+}
+
+void ApplyWeaponFix(FbxScene* pFbxScene)
+{
+	FbxNode* sceneRoot = pFbxScene->GetRootNode();	
+	ResetBoneTransform(sceneRoot);
+
+    //if (pFbxScene->GetPoseCount() > 0) {
+    //    auto pose = pFbxScene->GetPose(0);
+    //    int poseNodeCount = pose->GetCount();
+    //    std::cout << "Poses begin" << std::endl;
+    //    for (int i = 0; i < poseNodeCount; ++i) {
+    //        auto kNode = pose->GetNode(i);
+    //        if (kNode) {
+    //            //kNode->SetPivotState(FbxNode::eSourcePivot, FbxNode::ePivotActive);
+    //            //kNode->SetPivotState(FbxNode::eDestinationPivot, FbxNode::ePivotActive);
+    //            std::cout << kNode->GetName() << std::endl;
+    //            Display3DVector("lcl trans:", kNode->LclTranslation.Get(), "\n");
+    //            //kNode->SetGeometricTranslation(FbxNode::eDestinationPivot, FbxVector4());
+    //            //kNode->LclTranslation.Set(FbxVector4());
+    //            Display3DVector("lcl trans:", kNode->LclTranslation.Get(), "\n");
+    //        }
+    //    }
+    //    std::cout << "Poses end" << std::endl;
+    //}
+
+	sceneRoot->ConvertPivotAnimationRecursive(pFbxScene->GetCurrentAnimationStack(), FbxNode::eDestinationPivot, 30.0);
+}
+
 void RenameSkeleton(FbxScene* pFbxScene, FbxNode* pFbxNode, std::string indexName, std::map<std::string, SJointEnhancement> jointMap)
 {
 	FbxSkeleton* lSkeleton = (FbxSkeleton*)pFbxNode->GetNodeAttribute();
@@ -289,9 +375,13 @@ void InterateContent(FbxScene* pFbxScene)
 {
 	FbxNode* sceneRootNode = pFbxScene->GetRootNode();
 
-	// add a new root node
+	// apply bone hierarchy fix (add a new root node)
 	FbxNode* sklRoot = sceneRootNode->FindChild("Bip001", true, false);
-	FbxNode* newRoot = AddNewParent(pFbxScene, sklRoot, "root");	
+	if (sklRoot) {
+		FbxNode* newRoot = AddNewParent(pFbxScene, sklRoot, "root");
+	}
+	
+	ApplyWeaponFix(pFbxScene);
 
 	if (sceneRootNode)
 	{
