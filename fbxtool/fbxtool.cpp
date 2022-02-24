@@ -43,6 +43,7 @@ bool gApplyWeaponFix { false };
 bool gAddRoot{ false };
 std::string gAddRootChildName{ "" };
 std::string gAddRootRootName{ "root" };
+std::string gRemoveLeafName{ "" };
 std::string gAxis{ "" };
 double gScale = 1.0;
 
@@ -110,12 +111,12 @@ FbxNode* AddNewParent(FbxScene* pFbxScene, FbxNode* pChildNode, const char* pare
     return newParentNode;
 }
 
-void RemoveNode(FbxScene* pFbxScene, FbxNode* pNode)
+bool RemoveNode(FbxScene* pFbxScene, FbxNode* pNode)
 {
 	FbxNode* pCurrentParent = pNode->GetParent();
 	if (!pCurrentParent) {
 		FBXSDK_printf("Can not remove root node %s\n", pNode->GetName());
-		return;
+		return false;
 	}
 
 	pCurrentParent->RemoveChild(pNode);
@@ -128,7 +129,7 @@ void RemoveNode(FbxScene* pFbxScene, FbxNode* pNode)
 		pCurrentParent->AddChild(child);
 	}
 
-	pFbxScene->RemoveNode(pNode);
+	return pFbxScene->RemoveNode(pNode);
 }
 
 void ResetBoneTransform(FbxNode* node)
@@ -377,6 +378,24 @@ void InterateContent(FbxScene* pFbxScene, FbxNode* pFbxNode)
 	}
 }
 
+void RemoveLeafBones(FbxScene* pFbxScene, FbxNode* pFbxNode)
+{
+    for (int i = pFbxNode->GetChildCount() - 1; i >= 0; --i) {
+        RemoveLeafBones(pFbxScene, pFbxNode->GetChild(i));
+    }
+	
+	std::string boneName = pFbxNode->GetName();
+    if (boneName.find(gRemoveLeafName) != std::string::npos) {
+        if (pFbxNode->GetChildCount() == 0) {
+            bool b = RemoveNode(pFbxScene, pFbxNode);
+            std::cout << boneName << " removed:" << b << std::endl;
+        }
+        else {
+            std::cout << boneName << " is not leaf, can not remove!" << std::endl;
+        }
+    }
+}
+
 typedef std::map<std::string, FbxAMatrix> BoneGlobalTransform;
 BoneGlobalTransform _gBoneGlobalTransforms;
 
@@ -465,6 +484,10 @@ void ScaleScene(FbxScene* pFbxScene)
 void InterateContent(FbxScene* pFbxScene)
 {
 	FbxNode* sceneRootNode = pFbxScene->GetRootNode();
+
+	if (!gRemoveLeafName.empty()) {
+		RemoveLeafBones(pFbxScene, sceneRootNode);
+	}
 
 	if (gAddRoot) {
         // apply bone hierarchy fix (add a new root node)
@@ -893,6 +916,8 @@ int ReadJointFile(std::string &jointMetaFilePath)
             gAddRootChildName = jointJSONDocument["addRootChildName"].GetString();
 		if (jointJSONDocument.HasMember("addRootRootName") && jointJSONDocument["addRootRootName"].IsString())
 			gAddRootRootName = jointJSONDocument["addRootRootName"].GetString();
+        if (jointJSONDocument.HasMember("removeLeafName") && jointJSONDocument["removeLeafName"].IsString())
+            gRemoveLeafName = jointJSONDocument["removeLeafName"].GetString();
 	}
 
 	return 0;
