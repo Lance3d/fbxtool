@@ -4,6 +4,7 @@
   "addRoot": true,
   "addRootChildName": "Bip001",
   "addRootRootName": "root",
+  "removeLeafName": "Nub",
   "joints": [
     {
       "old-name": "Bip001",
