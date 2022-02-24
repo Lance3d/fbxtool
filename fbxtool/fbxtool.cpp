@@ -44,6 +44,7 @@ bool gAddRoot{ false };
 std::string gAddRootChildName{ "" };
 std::string gAddRootRootName{ "root" };
 std::string gAxis{ "" };
+double gScale = 1.0;
 
 
 
@@ -376,6 +377,90 @@ void InterateContent(FbxScene* pFbxScene, FbxNode* pFbxNode)
 	}
 }
 
+typedef std::map<std::string, FbxAMatrix> BoneGlobalTransform;
+BoneGlobalTransform _gBoneGlobalTransforms;
+
+// scale bone's local translate
+void ScaleNodeRecursive(FbxScene* pFbxScene, FbxNode* pNode)
+{
+	FbxNode* pParent = pNode->GetParent();
+	FbxAMatrix parentGlobal;
+	if (pParent)
+		parentGlobal = _gBoneGlobalTransforms[pParent->GetName()];
+	
+	FbxAMatrix& globalMat = _gBoneGlobalTransforms[pNode->GetName()];
+	FbxVector4 globalT = globalMat.GetT();
+
+	parentGlobal.SetS(FbxDouble3(1, 1, 1));
+	FbxAMatrix parentGlobalInv = parentGlobal.Inverse();	
+	FbxVector4 newLocalT = parentGlobalInv.MultT(globalT);	
+	pNode->LclTranslation.Set(newLocalT);
+
+	for (int i = 0; i < pNode->GetChildCount(); ++i) {
+		ScaleNodeRecursive(pFbxScene, pNode->GetChild(i));
+	}
+}
+
+void ScaleMeshes(FbxNode* pNode)
+{	
+    FbxMesh* pMesh = pNode->GetMesh();	
+
+    if (pMesh) {		
+		// scale the mesh vertex
+        FbxVector4* vertices = pMesh->GetControlPoints();
+		for (int i = 0; i < pMesh->GetControlPointsCount(); ++i) {
+			vertices[i] *= gScale;
+		}
+
+		// scale the cluster(bone) if any
+		int skinCount = pMesh->GetDeformerCount(FbxDeformer::eSkin);
+		for (int i = 0; i < skinCount; ++i) {
+			FbxSkin* pSkin = (FbxSkin*)pMesh->GetDeformer(i, FbxDeformer::eSkin);
+			if(!pSkin) continue;
+
+			int clusterCount = pSkin->GetClusterCount();
+			for (int j = 0; j < clusterCount; ++j) {
+				FbxCluster* pCluster = pSkin->GetCluster(j);
+				const char* clusterName = pCluster->GetLink()->GetName();
+				pCluster->SetTransformLinkMatrix(_gBoneGlobalTransforms[clusterName]);
+			}
+		}
+    }
+
+    for (int i = 0; i < pNode->GetChildCount(); ++i) {
+		ScaleMeshes(pNode->GetChild(i));
+    }
+}
+
+void GetBoneGlobalTransRecursive(FbxNode* pNode, BoneGlobalTransform& boneGlobalTransforms)
+{
+	FbxAMatrix& globalMat = pNode->EvaluateGlobalTransform(FBXSDK_TIME_INFINITE, FbxNode::eSourcePivot, false, true);
+	boneGlobalTransforms[pNode->GetName()] = globalMat;
+
+    for (int i = 0; i < pNode->GetChildCount(); ++i) {
+		GetBoneGlobalTransRecursive(pNode->GetChild(i), boneGlobalTransforms);
+    }
+}
+
+void ScaleScene(FbxScene* pFbxScene)
+{
+	// delete animation data because we do not want to handle it
+    FbxAnimStack* animStack = pFbxScene->GetCurrentAnimationStack();
+    if (animStack) pFbxScene->RemoveAnimStack(animStack->GetName());
+
+    FbxNode* sceneRootNode = pFbxScene->GetRootNode();
+    sceneRootNode->LclScaling.Set(FbxDouble3(gScale, gScale, gScale));
+    //sceneRootNode->ResetPivotSetAndConvertAnimation();
+
+    GetBoneGlobalTransRecursive(sceneRootNode, _gBoneGlobalTransforms);
+    ScaleNodeRecursive(pFbxScene, sceneRootNode);
+
+    sceneRootNode->LclScaling.Set(FbxDouble3(1, 1, 1));
+    //sceneRootNode->ResetPivotSetAndConvertAnimation();
+
+    GetBoneGlobalTransRecursive(sceneRootNode, _gBoneGlobalTransforms);
+    ScaleMeshes(sceneRootNode);
+}
 
 void InterateContent(FbxScene* pFbxScene)
 {
@@ -399,6 +484,9 @@ void InterateContent(FbxScene* pFbxScene)
 			InterateContent(pFbxScene, sceneRootNode->GetChild(i));
 		}
 	}
+    
+
+	ScaleScene(pFbxScene);
 }
 
 
