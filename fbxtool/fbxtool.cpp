@@ -485,8 +485,8 @@ void InterateContent(FbxScene* pFbxScene)
 		}
 	}
     
-
-	ScaleScene(pFbxScene);
+	if(abs(gScale - 1.0) > DBL_EPSILON)
+		ScaleScene(pFbxScene);
 }
 
 
@@ -930,7 +930,9 @@ int main(int argc, char** argv)
 		| Opt(addIK)
 		["-k"] ["--add-ik"]("Add standard IK bones to the model")
 		| Opt(applyMixamoFixes)
-		["-f"] ["--fixamo"]("Apply fixes to Mixamo model");
+		["-f"] ["--fixamo"]("Apply fixes to Mixamo model")
+		| Opt(gScale, "uniform scale")
+		["--scale"]("Apply uniform scale");
 
 	auto result = cli.parse(Args(argc, argv));
 	if (!result) {
